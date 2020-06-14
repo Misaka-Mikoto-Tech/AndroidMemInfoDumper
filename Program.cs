@@ -33,12 +33,14 @@ namespace AndroidMemInfoDumper
             Console.WriteLine($"process \"{processName}(pid:{pi.pid})\" is {arch}");
 
             ProcessMemInfo pmi = new ProcessMemInfo(pi.pid);
-            File.WriteAllText("D:/maps.txt", pmi.mapsStr);
-            File.WriteAllText("D:/smaps.txt", pmi.smapsStr);
-            File.WriteAllText("D:/gpemem.txt", pmi.gpuMemMaps);
-            File.WriteAllText("D:/showmap.txt", pmi.showmapStr);
-            File.WriteAllText("D:/smaps.csv", pmi.smapsStr_csv);
-            File.WriteAllText("D:/gpemem.csv", pmi.gpuMemMaps_csv);
+
+            string dir = Environment.CurrentDirectory;
+            File.WriteAllText($"{dir}/maps.txt", pmi.mapsStr);
+            File.WriteAllText($"{dir}/smaps.txt", pmi.smapsStr);
+            File.WriteAllText($"{dir}/gpemem.txt", pmi.gpuMemMaps);
+            File.WriteAllText($"{dir}/showmap.txt", pmi.showmapStr);
+            File.WriteAllText($"{dir}/smaps.csv", pmi.smapsStr_csv);
+            File.WriteAllText($"{dir}/gpemem.csv", pmi.gpuMemMaps_csv);
 
             Console.WriteLine("数据已写入文件");
         }

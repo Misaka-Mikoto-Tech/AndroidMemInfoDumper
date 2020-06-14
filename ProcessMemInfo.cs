@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -56,6 +57,9 @@ exit";
             gpuMemMaps = GetAndroidFileContent(string.Format(GPU_MEM_FILE_PATH_TEMPLATE, pid));
 
             showmapStr = ExecuteShellAndGetOutput(string.Format(SHELL_SHOWMAP_TEMPLATE, pid));
+
+            smapsStr_csv = GetCsvOfSmaps(smapsStr);
+            gpuMemMaps_csv = GetCsvOfGPUMem(gpuMemMaps);
         }
 
         private string GetAndroidFileContent(string path)
@@ -94,7 +98,7 @@ exit";
         }
 
 
-        private struct SmapsLineInfo
+        private class SmapsLineInfo
 		{
             public string addrStart;
             public string addrEnd;
@@ -103,19 +107,27 @@ exit";
             public string deviceNo;
             public string fileNo;
             public string mappedFile;
-            public int size;
-            public int rss;
-            public int pss;
-            public int shared_clean;
-            public int shared_dirty;
-            public int private_clean;
-            public int private_dirty;
-            public int referenced;
-            public int anonymous;
-            public int swap;
-            public int kernelPageSize;
-            public int MMUPageSize;
-            public int Locked;
+
+			public bool isStack;
+			public bool isSo;
+			public bool isDalvik;
+			public bool isBss;
+			public bool isKgsl;
+
+			public string size;
+			public string kernelPageSize;
+			public string MMUPageSize;
+			public string rss;
+            public string pss;
+            public string shared_clean;
+            public string shared_dirty;
+            public string private_clean;
+            public string private_dirty;
+            public string referenced;
+            public string anonymous;
+            public string swap;
+            public string swapPss;
+            public string Locked;
             public string VmFlags; // rd mr mw me ac 
 
             /*
@@ -147,15 +159,190 @@ exit";
             nh  - no-huge page advise flag
             mg  - mergable advise flag
              */
+
+            private static StringBuilder s_sb = new StringBuilder();
+            private static FieldInfo[] s_fis = typeof(SmapsLineInfo).GetFields(BindingFlags.Public | BindingFlags.Instance);
+
+            public static string Title()
+			{
+                s_sb.Clear();
+                foreach(var fi in s_fis)
+				{
+                    s_sb.Append(fi.Name);
+                    s_sb.Append(',');
+				}
+
+                string title = s_sb.ToString();
+                return title.Substring(0, title.Length - 1);
+			}
+
+			public override string ToString()
+			{
+                s_sb.Clear();
+				foreach (var fi in s_fis)
+				{
+					s_sb.Append(fi.GetValue(this));
+					s_sb.Append(',');
+				}
+
+				string title = s_sb.ToString();
+				return title.Substring(0, title.Length - 1);
+			}
+
 		}
 
-		private string GetCsvOfSmaps(string smapsStr)
+
+        private Regex _regAddrInfo = new Regex(@"([0-9a-f]+)-([0-9a-f]+)\s+([rwxps\-]+)\s+([0-9a-f]+)\s+([0-9a-f\:]+)\s+([0-9a-f]+)\s+(.*)");
+        private Regex _regGetNum = new Regex(@"(.+):\s+(\d+).*"); // Size, Rss, Pss, and so on
+        private string GetCsvOfSmaps(string smapsStr)
 		{
             if (string.IsNullOrEmpty(smapsStr))
                 return null;
 
+            StringReader sr = new StringReader(smapsStr);
+
+            List<SmapsLineInfo> lineInfos = new List<SmapsLineInfo>();
+            SmapsLineInfo currLineInfo = null;
+
+            string line;
+            int lineNo = -1;
+            while((line = sr.ReadLine())!= null)
+            {
+                lineNo++;
+                char firstChr = line[0];
+                if((firstChr >= '0' && firstChr <= '9') || (firstChr >= 'a' && firstChr <= 'f'))
+                {
+                    currLineInfo = new SmapsLineInfo();
+                    lineInfos.Add(currLineInfo);
+
+                    Match match = _regAddrInfo.Match(line);
+                    if (!match.Success)
+                    {
+                        Console.WriteLine($"unexpected line {lineNo}, content:{line}");
+                        return null;
+                    }
+
+                    var groups = match.Groups;
+                    currLineInfo.addrStart = groups[1].Value;
+                    currLineInfo.addrEnd = groups[2].Value;
+                    currLineInfo.attr = groups[3].Value;
+                    currLineInfo.mapOffset = groups[4].Value;
+                    currLineInfo.deviceNo = groups[5].Value;
+                    currLineInfo.fileNo = groups[6].Value;
+                    currLineInfo.mappedFile = groups[7].Value;
+
+                    if (currLineInfo.mappedFile.Contains("stack"))
+                        currLineInfo.isStack = true;
+
+					if (currLineInfo.mappedFile.Contains(".so"))
+						currLineInfo.isSo = true;
+
+					if (currLineInfo.mappedFile.Contains("dalvik"))
+						currLineInfo.isDalvik = true;
+
+					if (currLineInfo.mappedFile.Contains(".bss"))
+						currLineInfo.isBss = true;
+
+					if (currLineInfo.mappedFile.Contains("kgsl-3d0"))
+						currLineInfo.isKgsl = true;
+				}
+                else
+				{
+                    Match match = _regGetNum.Match(line);
+                    if(match.Success) // Size, Rss, Pss.....
+					{
+                        var groups = match.Groups;
+                        string key = groups[1].Value;
+                        string number = groups[2].Value;
+
+                        switch(key)
+						{
+                            case "Size":
+                                currLineInfo.size = number;
+                                break;
+                            case "KernelPageSize":
+                                currLineInfo.kernelPageSize = number;
+                                break;
+                            case "MMUPageSize":
+                                currLineInfo.MMUPageSize = number;
+                                break;
+                            case "Rss":
+                                currLineInfo.rss = number;
+                                break;
+                            case "Pss":
+                                currLineInfo.pss = number;
+                                break;
+                            case "Shared_Clean":
+                                currLineInfo.shared_clean = number;
+                                break;
+                            case "Shared_Dirty":
+                                currLineInfo.shared_dirty = number;
+                                break;
+                            case "Private_Clean":
+                                currLineInfo.private_clean = number;
+                                break;
+                            case "Private_Dirty":
+                                currLineInfo.private_dirty = number;
+                                break;
+                            case "Referenced":
+                                currLineInfo.referenced = number;
+                                break;
+                            case "Anonymous":
+                                currLineInfo.anonymous = number;
+                                break;
+                            case "Swap":
+                                currLineInfo.swap = number;
+                                break;
+                            case "SwapPss":
+                                currLineInfo.swapPss = number;
+                                break;
+                            case "Locked":
+                                currLineInfo.Locked = number;
+                                break;
+                        }
+					}
+					else
+					{
+                        if(line.StartsWith("VmFlags:", StringComparison.Ordinal))
+						{
+                            currLineInfo.VmFlags = line.Substring("VmFlags: ".Length);
+						}
+					}
+				}
+			}
+
             StringBuilder sb = new StringBuilder((int)(smapsStr.Length * 1.5f));
-            return null;
+            sb.AppendLine(SmapsLineInfo.Title());
+            foreach(var lineInfo in lineInfos)
+			{
+                sb.AppendLine(lineInfo.ToString());
+			}
+
+            return sb.ToString();
+		}
+
+        private string GetCsvOfGPUMem(string gpuMemStr)
+		{
+			if (string.IsNullOrEmpty(gpuMemStr))
+				return null;
+
+			StringReader sr = new StringReader(gpuMemStr);
+
+			string line;
+            StringBuilder sb = new StringBuilder((int)(gpuMemStr.Length * 1.5f));
+            while ((line = sr.ReadLine()) != null)
+            {
+                string[] cols = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string col in cols)
+				{
+                    sb.Append(col);
+                    sb.Append(',');
+                }
+                sb.AppendLine();
+            }
+
+            string ret = sb.ToString();
+		    return ret.Substring(0, ret.Length - 1);
 		}
     }
 }

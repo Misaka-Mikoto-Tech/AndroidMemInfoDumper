@@ -37,6 +37,8 @@ namespace AndroidMemInfoDumper
             File.WriteAllText("D:/smaps.txt", pmi.smapsStr);
             File.WriteAllText("D:/gpemem.txt", pmi.gpuMemMaps);
             File.WriteAllText("D:/showmap.txt", pmi.showmapStr);
+            File.WriteAllText("D:/smaps.csv", pmi.smapsStr_csv);
+            File.WriteAllText("D:/gpemem.csv", pmi.gpuMemMaps_csv);
 
             Console.WriteLine("数据已写入文件");
         }

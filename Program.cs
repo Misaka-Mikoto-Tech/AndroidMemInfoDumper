@@ -10,7 +10,7 @@ namespace AndroidMemInfoDumper
 {
     class Program
     {
-        const string PROCESS_NAME = "com.tencent.wod";
+        const string PROCESS_NAME = "com.tencent.qq";
 
         static void Main(string[] args)
         {

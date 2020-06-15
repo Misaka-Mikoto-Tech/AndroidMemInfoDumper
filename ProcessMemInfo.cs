@@ -148,7 +148,7 @@ exit";
             rr  - random read advise provided
             dc  - do not copy area on fork
             de  - do not expand area on remapping
-            ac  - area is accountable
+            ac  - area is accountable       // VM_ACCOUNT, used by anonymous shared, private mappings and special mappings, 此种内存没有名字， mappedFile 字段为空
             nr  - swap space is not reserved for the area
             ht  - area uses huge tlb pages
             ar  - architecture specific flag
@@ -159,6 +159,57 @@ exit";
             nh  - no-huge page advise flag
             mg  - mergable advise flag
              */
+
+            /*
+            static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+            {
+        
+        	    const struct {
+        		    const char l[2];
+        	    }
+		           mnemonics[BITS_PER_LONG] = {
+        		    [ilog2(VM_READ)]	    = { .l = {'r', 'd'} },
+        		    [ilog2(VM_WRITE)]	    = { .l = {'w', 'r'} },
+        		    [ilog2(VM_EXEC)]	    = { .l = {'e', 'x'} },
+        		    [ilog2(VM_SHARED)]	    = { .l = {'s', 'h'} },
+        		    [ilog2(VM_MAYREAD)]	    = { .l = {'m', 'r'} },
+        		    [ilog2(VM_MAYWRITE)]	= { .l = {'m', 'w'} },
+        		    [ilog2(VM_MAYEXEC)]	    = { .l = {'m', 'e'} },
+        		    [ilog2(VM_MAYSHARE)]	= { .l = {'m', 's'} },
+        		    [ilog2(VM_GROWSDOWN)]	= { .l = {'g', 'd'} },
+        		    [ilog2(VM_PFNMAP)]	    = { .l = {'p', 'f'} },
+        		    [ilog2(VM_DENYWRITE)]	= { .l = {'d', 'w'} },
+        		    [ilog2(VM_LOCKED)]	    = { .l = {'l', 'o'} },
+        		    [ilog2(VM_IO)]		    = { .l = {'i', 'o'} },
+        		    [ilog2(VM_SEQ_READ)]	= { .l = {'s', 'r'} },
+        		    [ilog2(VM_RAND_READ)]	= { .l = {'r', 'r'} },
+        		    [ilog2(VM_DONTCOPY)]	= { .l = {'d', 'c'} },
+        		    [ilog2(VM_DONTEXPAND)]	= { .l = {'d', 'e'} },
+        		    [ilog2(VM_ACCOUNT)]	    = { .l = {'a', 'c'} },
+        		    [ilog2(VM_NORESERVE)]	= { .l = {'n', 'r'} },
+        		    [ilog2(VM_HUGETLB)]	    = { .l = {'h', 't'} },
+        		    [ilog2(VM_NONLINEAR)]	= { .l = {'n', 'l'} },
+        		    [ilog2(VM_ARCH_1)]	    = { .l = {'a', 'r'} },
+        		    [ilog2(VM_DONTDUMP)]	= { .l = {'d', 'd'} },
+        		    [ilog2(VM_MIXEDMAP)]	= { .l = {'m', 'm'} },
+        		    [ilog2(VM_HUGEPAGE)]	= { .l = {'h', 'g'} },
+        		    [ilog2(VM_NOHUGEPAGE)]	= { .l = {'n', 'h'} },
+        		    [ilog2(VM_MERGEABLE)]	= { .l = {'m', 'g'} },
+        	    };
+        
+        	    size_t i;
+        
+        	    seq_puts(m, "VmFlags: ");
+        	    for (i = 0; i<BITS_PER_LONG; i++) {
+        		    if (vma->vm_flags & (1 << i))
+        			    seq_printf(m, "%c%c ",
+        				       mnemonics[i].l[0],
+        				       mnemonics[i].l[1]);
+        	    }
+        	    seq_putc(m, '\n');
+            }
+
+			 */
 
             private static StringBuilder s_sb = new StringBuilder();
             private static FieldInfo[] s_fis = typeof(SmapsLineInfo).GetFields(BindingFlags.Public | BindingFlags.Instance);
